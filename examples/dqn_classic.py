@@ -3,7 +3,7 @@ import gym
 import argparse
 
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten
+from keras.layers import Dense, Activation, Flatten, NoisyNet
 from keras.optimizers import Adam
 
 from rl.agents.dqn import DQNAgent
@@ -11,13 +11,14 @@ from rl.policy import BoltzmannQPolicy, BoltzmannGumbelQPolicy, EpsGreedyQPolicy
 from rl.memory import SequentialMemory
 
 from rl.callbacks import FileLogger, ModelIntervalCheckpoint
+#from NoisyNet import NoisyNet
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--envname', type=str, default='MountainCar-v0')
 parser.add_argument('--nbsteps', default=50000)
 parser.add_argument('--mem', default=50000)
-parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps'], default='eps')
+parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps', 'noisy'], default='eps')
 args = parser.parse_args()
 
 
@@ -42,7 +43,10 @@ model.add(Dense(16))
 model.add(Activation('relu'))
 model.add(Dense(16))
 model.add(Activation('relu'))
-model.add(Dense(nb_actions))
+if POL == 'noisy':
+	model.add(NoisyNet(nb_actions))
+else:
+	model.add(Dense(nb_actions))
 model.add(Activation('linear'))
 print(model.summary())
 
@@ -59,6 +63,8 @@ elif POL == 'bgq':
 elif POL == 'leps':
 	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.02, value_test=.02,
                               nb_steps=(nb_steps/2))
+else:
+	policy = EpsGreedyQPolicy(eps=0)
 
 
 dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=10,
