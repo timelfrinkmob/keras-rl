@@ -4,7 +4,7 @@ import argparse
 from PIL import Image
 
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten, Convolution2D, Permute
+from keras.layers import Dense, Activation, Flatten, Convolution2D, Permute, NoisyNet
 
 from keras.optimizers import Adam
 
@@ -17,12 +17,11 @@ from rl.core import Processor
 from rl.callbacks import FileLogger, ModelIntervalCheckpoint
 import keras.backend as K
 
-
 parser = argparse.ArgumentParser()
 parser.add_argument('--envname', type=str, default='Pong-v0')
 parser.add_argument('--nbsteps', default=1750000)
 parser.add_argument('--mem', default=1000000)
-parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps'], default='eps')
+parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps', 'noisy'], default='eps')
 args = parser.parse_args()
 
 
@@ -84,7 +83,10 @@ model.add(Activation('relu'))
 model.add(Flatten())
 model.add(Dense(512))
 model.add(Activation('relu'))
-model.add(Dense(nb_actions))
+if POL == 'noisy':
+    model.add(Dense(nb_actions))
+else:
+    model.add(NoisyNet(nb_actions))
 model.add(Activation('linear'))
 print(model.summary())
 
@@ -103,13 +105,14 @@ elif POL == 'bgq':
 elif POL == 'leps':
 	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.02, value_test=.02,
                               nb_steps=(nb_steps/2))
-
+else:
+	policy = EpsGreedyQPolicy(eps=0)
 
 
 dqn = DQNAgent(model=model, nb_actions=nb_actions, policy=policy, memory=memory,
                processor=processor, nb_steps_warmup=50000, gamma=.99, target_model_update=10000,
                train_interval=4, delta_clip=1.)
-               
+
 dqn.compile(Adam(lr=.00025), metrics=['mae'])
 
 # Okay, now it's time to learn something! We visualize the training here for show, but this
