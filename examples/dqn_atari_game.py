@@ -103,8 +103,8 @@ elif POL == 'bq':
 elif POL == 'bgq':
 	policy = BoltzmannGumbelQPolicy()	
 elif POL == 'leps':
-	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.02, value_test=.02,
-                              nb_steps=(nb_steps/2))
+	policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.1, value_test=.05,
+                              nb_steps=1000000)
 else:
 	policy = EpsGreedyQPolicy(eps=0)
 
