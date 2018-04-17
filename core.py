@@ -919,7 +919,7 @@ class ActivityRegularization(Layer):
 # https://github.com/OctThe16th/Noisy-A3C-Keras/blob/master/NoisyDense.py
 # https://github.com/andrewliao11/NoisyNet-DQN
 class NoisyNet(Layer):
-    def __init__(self, output_dim, sigma_zero=0.5, **kwargs):
+    def __init__(self, output_dim, sigma_zero=0.07, **kwargs):
         self.output_dim = output_dim
         self.sigma_zero = sigma_zero
         super(NoisyNet, self).__init__(**kwargs)
