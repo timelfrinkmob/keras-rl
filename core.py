@@ -930,41 +930,27 @@ class NoisyNet(Layer):
     def build(self, input_shape):
         self.input_dim = input_shape[-1]
 
-        # factorised noisy network
-        # u_i,j from U[-1/sqrt(p),1/sqrt(p)]
-        limit = (1 / np.power(input_shape[1], 0.5))
-        mu_init = initializers.RandomUniform(minval=-limit, maxval=limit)
-
-        # o_i,j constant sigma_zero/sqrt(p)
-        sigma_init_value = self.sigma_zero * limit
-        sigma_init = initializers.Constant(value=sigma_init_value)
-
-        # eq.10 and eq.11
-        def f(x):
-            return K.sign(x) * K.pow(K.abs(x), 0.5)
-
-        f_p_noise = self.sample_noise((self.input_dim, self.output_dim))
-        f_p = f(f_p_noise)
-        f_q = f(self.sample_noise((self.output_dim,)))
-
-        self.epsilon_kernel = f_p * f_q
-        # self.epsilon_bias = K.squeeze(f_q, None)
-        self.epsilon_bias = f_q
-
         self.kernel = self.add_weight(shape=(self.input_dim, self.output_dim),
-                                      initializer=mu_init,
-                                      name='kernel')
+                                      initializer=initializers.get('glorot_uniform'),
+                                      name='kernel',
+                                      regularizer=None,
+                                      constraint=None)
+        
         self.sigma_kernel = self.add_weight(shape=(self.input_dim, self.output_dim,),
-                                            initializer=sigma_init,
+                                            initializer=initializers.Constant(value=self.sigma_zero),
                                             name='sigma_kernel')
 
         self.bias = self.add_weight(shape=(self.output_dim,),
-                                    initializer=mu_init,
-                                    name='bias')
+                                    initializer='zeros',
+                                    name='bias',
+                                    regularizer=None,
+                                    constraint=None)
 
         self.sigma_bias = self.add_weight(shape=(self.output_dim,),
-                                          initializer=sigma_init,
+                                          initializer=initializers.Constant(value=self.sigma_zero),
                                           name='sigma_bias')
+        self.epsilon_kernel = K.random_normal(shape=(self.input_dim, self.output_dim), mean=0, stddev=1)
+        self.epsilon_bias = K.random_normal(shape=(self.output_dim,), mean=0, stddev=1)
 
         super(NoisyNet, self).build(input_shape)  # Be sure to call this somewhere!
 
