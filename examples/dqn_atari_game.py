@@ -87,7 +87,7 @@ if POL == 'noisy':
     model.add(NoisyDense(nb_actions))
 else:
     model.add(Dense(nb_actions))
-model.add(Activation('linear'))
+model.add(Activation('relu'))
 print(model.summary())
 
 
