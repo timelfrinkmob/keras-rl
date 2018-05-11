@@ -4,7 +4,7 @@ import argparse
 from PIL import Image
 
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten, Convolution2D, Permute, NoisyNet
+from keras.layers import Dense, Activation, Flatten, Convolution2D, Permute, NoisyDense
 
 from keras.optimizers import Adam
 
@@ -81,13 +81,18 @@ model.add(Activation('relu'))
 model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
 model.add(Activation('relu'))
 model.add(Flatten())
-model.add(Dense(512))
-model.add(Activation('relu'))
 if POL == 'noisy':
-    model.add(NoisyNet(nb_actions))
+    model.add(NoisyDense(512))
+    model.add(Activation('relu'))
+    model.add(NoisyDense(nb_actions))
+    #model.add(Activation('linear'))
+
 else:
+    model.add(Dense(512))
+    model.add(Activation('relu'))
     model.add(Dense(nb_actions))
-model.add(Activation('linear'))
+    model.add(Activation('linear'))
+
 print(model.summary())
 
 

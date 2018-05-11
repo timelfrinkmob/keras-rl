@@ -918,97 +918,59 @@ class ActivityRegularization(Layer):
 
 # https://github.com/OctThe16th/Noisy-A3C-Keras/blob/master/NoisyDense.py
 # https://github.com/andrewliao11/NoisyNet-DQN
-class NoisyNet(Layer):
+class NoisyDense(Dense):
+    def make_kernel_noise(self, shape):
+        kernel_noise_input = self.make_fg_noise(shape=[shape[0]])
+        kernel_noise_output = self.make_fg_noise(shape=[shape[1]])
+        self.noise_list = [kernel_noise_input, kernel_noise_output]
+        kernel_noise = K.expand_dims(kernel_noise_input) * kernel_noise_output
+        return kernel_noise
 
-    def __init__(self, units,
-                 sigma_init=0.02,
-                 activation=None,
-                 use_bias=True,
-                 kernel_initializer='glorot_uniform',
-                 bias_initializer='zeros',
-                 kernel_regularizer=None,
-                 bias_regularizer=None,
-                 activity_regularizer=None,
-                 kernel_constraint=None,
-                 bias_constraint=None,
-                 **kwargs):
-        if 'input_shape' not in kwargs and 'input_dim' in kwargs:
-            kwargs['input_shape'] = (kwargs.pop('input_dim'),)
-        super(NoisyNet, self).__init__(**kwargs)
-        self.units = units
-        self.sigma_init = sigma_init
-        self.activation = activations.get(activation)
-        self.use_bias = use_bias
-        self.kernel_initializer = initializers.get(kernel_initializer)
-        self.bias_initializer = initializers.get(bias_initializer)
-        self.kernel_regularizer = regularizers.get(kernel_regularizer)
-        self.bias_regularizer = regularizers.get(bias_regularizer)
-        self.activity_regularizer = regularizers.get(activity_regularizer)
-        self.kernel_constraint = constraints.get(kernel_constraint)
-        self.bias_constraint = constraints.get(bias_constraint)
+    def make_bias_noise(self, shape):
+        return self.noise_list[1]  # kernel_noise_output
+
+    def make_fg_noise(self, shape):
+        noise = K.random_normal(shape)
+        trans_noise = K.sign(noise) * K.sqrt(K.abs(noise))
+        return trans_noise
 
     def build(self, input_shape):
+
         assert len(input_shape) >= 2
-        self.input_dim = input_shape[-1]
-
-        self.kernel = self.add_weight(shape=(self.input_dim, self.units),
-                                      initializer=self.kernel_initializer,
-                                      name='kernel',
-                                      regularizer=self.kernel_regularizer,
-                                      constraint=self.kernel_constraint)
-
-        self.sigma_kernel = self.add_weight(shape=(self.input_dim, self.units),
-                                      initializer=initializers.Constant(value=self.sigma_init),
-                                      name='sigma_kernel'
-                                      )
+        input_dim = input_shape[-1]
+        kernel_shape = (input_dim, self.units)
+        kernel_quiet = self.add_weight('kernel_quiet',
+                                       shape=kernel_shape,
+                                       initializer=self.kernel_initializer,
+                                       regularizer=self.kernel_regularizer,
+                                       constraint=self.kernel_constraint,
+                                       trainable=True)
 
 
+        scale_init = initializers.Constant(value=(0.5 / np.sqrt(kernel_shape[0])))
+
+        kernel_noise_scale = self.add_weight('kernel_noise_scale',
+                                               shape=kernel_shape,
+                                               initializer=scale_init,
+                                               trainable=True)
+
+
+        kernel_noise = self.make_kernel_noise(shape=kernel_shape)
+        self.kernel = kernel_quiet + kernel_noise_scale * kernel_noise
         if self.use_bias:
-            self.bias = self.add_weight(shape=(self.units,),
-                                        initializer=self.bias_initializer,
-                                        name='bias',
-                                        regularizer=self.bias_regularizer,
-                                        constraint=self.bias_constraint)
-            self.sigma_bias = self.add_weight(shape=(self.units,),
-                                        initializer=initializers.Constant(value=self.sigma_init),
-                                        name='sigma_bias')
+            bias_shape = [self.units,]
+            bias_quiet = self.add_weight('bias_quiet',
+                                           shape=bias_shape,
+                                           initializer=self.bias_initializer,
+                                           regularizer=self.bias_regularizer,
+                                           constraint=self.bias_constraint,
+                                           trainable=True)
+            bias_noise_scale = self.add_weight(name='bias_noise_scale',
+                                                 shape=bias_shape,
+                                                 initializer=scale_init,
+                                                 trainable=True)
+            bias_noise = self.make_bias_noise(shape=bias_shape)
+            self.bias = bias_quiet + bias_noise_scale * bias_noise
         else:
             self.bias = None
-            self.epsilon_bias = None
-        self.sample_noise()
-        super(NoisyNet, self).build(input_shape)
-
-
-    def call(self, X):
-        perturbation = self.sigma_kernel * self.epsilon_kernel
-        perturbed_kernel = self.kernel + perturbation
-        output = K.dot(X, perturbed_kernel)
-        if self.use_bias:
-            bias_perturbation = self.sigma_bias * self.epsilon_bias
-            perturbed_bias = self.bias + bias_perturbation
-            output = K.bias_add(output, perturbed_bias)
-        if self.activation is not None:
-            output = self.activation(output)
-        return output
-
-    def compute_output_shape(self, input_shape):
-        assert input_shape and len(input_shape) >= 2
-        assert input_shape[-1]
-        output_shape = list(input_shape)
-        output_shape[-1] = self.units
-        return tuple(output_shape)
-
-    def sample_noise(self):
-        self.epsilon_kernel = K.random_normal(shape=(self.input_dim, self.units), mean=0, stddev=1)
-        self.epsilon_bias = K.random_normal(shape=(self.units,), mean=0, stddev=1)
-
-    def remove_noise(self):
-        self.epsilon_kernel = K.zeros(shape=(self.input_dim, self.units))
-        self.epsilon_bias = K.zeros(shape=(self.units))
-
-    def get_config(self):
-        config = {
-            'units': self.units
-        }
-        base_config = super(NoisyNet, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        self.built = True
