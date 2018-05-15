@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import numpy as np
 from keras.callbacks import History
+from random import *
 
 from rl.callbacks import (
     CallbackList,
@@ -120,6 +121,10 @@ class Agent(object):
         episode_reward = None
         episode_step = None
         did_abort = False
+
+        if self.bootstrap:
+            bootstrap_network = randint(0, 9)
+
         try:
             while self.step < nb_steps:
                 if observation is None:  # start of a new episode
@@ -127,8 +132,15 @@ class Agent(object):
                     episode_step = np.int16(0)
                     episode_reward = np.float32(0)
 
+                    if self.bootstrap:
+                        self.get_bootstrap(bootstrap_network)
+
                     # Obtain the initial observation by resetting the environment.
                     self.reset_states()
+
+                    if self.bootstrap:
+                        self.set_bootstrap(bootstrap_network)
+
                     observation = deepcopy(env.reset())
                     if self.processor is not None:
                         observation = self.processor.process_observation(observation)
@@ -166,7 +178,15 @@ class Agent(object):
                 callbacks.on_step_begin(episode_step)
                 # This is were all of the work happens. We first perceive and compute the action
                 # (forward step) and then use the reward to improve (backward step).
+
+                if self.bootstrap:
+                    self.get_bootstrap(bootstrap_network)
+
                 action = self.forward(observation)
+
+                if self.bootstrap:
+                    self.set_bootstrap(bootstrap_network)
+
                 if self.processor is not None:
                     action = self.processor.process_action(action)
                 reward = np.float32(0)
@@ -191,7 +211,17 @@ class Agent(object):
                 if nb_max_episode_steps and episode_step >= nb_max_episode_steps - 1:
                     # Force a terminal state.
                     done = True
-                metrics = self.backward(reward, terminal=done)
+
+                if self.bootstrap:
+                    #metrics = [] TODO
+                    for m in range(self.bootstrap_heads):
+                        self.get_bootstrap(m)
+                        append = randint(0, 1) ==1
+                        if append:
+                            metrics =self.backward_boot(reward, terminal=done)
+                        self.set_bootstrap(m)
+                else:
+                    metrics = self.backward(reward, terminal=done)
                 episode_reward += reward
 
                 step_logs = {
@@ -202,6 +232,8 @@ class Agent(object):
                     'episode': episode,
                     'info': accumulated_info,
                 }
+
+
                 callbacks.on_step_end(episode_step, step_logs)
                 episode_step += 1
                 self.step += 1
@@ -212,8 +244,27 @@ class Agent(object):
                     # resetting the environment. We need to pass in `terminal=False` here since
                     # the *next* state, that is the state of the newly reset environment, is
                     # always non-terminal by convention.
+                    if self.bootstrap:
+                        self.get_bootstrap(bootstrap_network)
+
                     self.forward(observation)
-                    self.backward(0., terminal=False)
+
+                    if self.bootstrap:
+                        self.set_bootstrap(bootstrap_network)
+
+
+                    if self.bootstrap:
+                        for m in range(self.bootstrap_heads):
+                            self.get_bootstrap(m)
+                            append = randint(0, 1) == 1
+                            #append = True
+                            if append:
+                                #self.backward_boot(0., terminal=False)
+                                self.backward(0., terminal=False)
+                            self.set_bootstrap(m)
+
+                    else:
+                        self.backward(0., terminal=False)
 
                     # This episode is finished, report and reset.
                     episode_logs = {
@@ -221,12 +272,18 @@ class Agent(object):
                         'nb_episode_steps': episode_step,
                         'nb_steps': self.step,
                     }
+                    if self.bootstrap:
+                        episode_logs['network'] = bootstrap_network
                     callbacks.on_episode_end(episode, episode_logs)
 
                     episode += 1
                     observation = None
                     episode_step = None
                     episode_reward = None
+
+                    if self.bootstrap:
+                        bootstrap_network = randint(0, 9)
+
         except KeyboardInterrupt:
             # We catch keyboard interrupts here so that training can be be safely aborted.
             # This is so common that we've built this right into this function, which ensures that
@@ -567,7 +624,7 @@ class Processor(object):
         # Arguments
             action (int): Action given to the environment
 
-        # Returns
+        # Returns
             Processed action given to the environment
         """
         return action
@@ -614,8 +671,8 @@ class Env(object):
 
     - `step`
     - `reset`
-    - `render`
-    - `close`
+    - `render`
+    - `close`
 
     Refer to the [Gym documentation](https://gym.openai.com/docs/#environments).
     """
