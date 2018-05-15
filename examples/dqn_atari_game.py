@@ -21,15 +21,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--envname', type=str, default='Pong-v0')
 parser.add_argument('--nbsteps', default=1750000)
 parser.add_argument('--mem', default=1000000)
-parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps', 'noisy'], default='eps')
+parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps', 'noisy', 'bs'], default='eps')
+parser.add_argument('--bsheads', default=10)
 args = parser.parse_args()
-
 
 
 ENV_NAME = args.envname
 POL = args.exp
-nb_steps = args.nbsteps
-memory_limit = args.mem
+n = int(args.n)
+episodes = int(args.episodes)
+bsheads = int(args.bsheads)
 
 
 INPUT_SHAPE = (84, 84)
@@ -65,35 +66,49 @@ nb_actions = env.action_space.n
 
 # Next, we build our model. We use the same model that was described by Mnih et al. (2015).
 input_shape = (WINDOW_LENGTH,) + INPUT_SHAPE
-model = Sequential()
-if K.image_dim_ordering() == 'tf':
-    # (width, height, channels)
-    model.add(Permute((2, 3, 1), input_shape=input_shape))
-elif K.image_dim_ordering() == 'th':
-    # (channels, width, height)
-    model.add(Permute((1, 2, 3), input_shape=input_shape))
-else:
-    raise RuntimeError('Unknown image_dim_ordering.')
-model.add(Convolution2D(32, 8, 8, subsample=(4, 4)))
-model.add(Activation('relu'))
-model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
-model.add(Activation('relu'))
-model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
-model.add(Activation('relu'))
-model.add(Flatten())
-if POL == 'noisy':
-    model.add(NoisyDense(512))
-    model.add(Activation('relu'))
-    model.add(NoisyDense(nb_actions))
-    #model.add(Activation('linear'))
 
-else:
-    model.add(Dense(512))
+def make_model():
+    model = Sequential()
+    if K.image_dim_ordering() == 'tf':
+        # (width, height, channels)
+        model.add(Permute((2, 3, 1), input_shape=input_shape))
+    elif K.image_dim_ordering() == 'th':
+        # (channels, width, height)
+        model.add(Permute((1, 2, 3), input_shape=input_shape))
+    else:
+        raise RuntimeError('Unknown image_dim_ordering.')
+    model.add(Convolution2D(32, 8, 8, subsample=(4, 4)))
     model.add(Activation('relu'))
-    model.add(Dense(nb_actions))
-    model.add(Activation('linear'))
+    model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
+    model.add(Activation('relu'))
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
+    model.add(Activation('relu'))
+    model.add(Flatten())
+    if POL == 'noisy':
+        model.add(NoisyDense(512))
+        model.add(Activation('relu'))
+        model.add(NoisyDense(nb_actions))
+        #model.add(Activation('linear'))
 
-print(model.summary())
+    else:
+        model.add(Dense(512))
+        model.add(Activation('relu'))
+        model.add(Dense(nb_actions))
+        model.add(Activation('linear'))
+    return model
+
+if POL == 'bs':
+    bootstrap_models = []
+    for m in range(bsheads):
+        bootstrap_models.append(make_model())
+    model = bootstrap_models[0]
+    print(model.summary())
+    bootstrap = True
+else:
+    model = make_model()
+    bootstrap_models= None
+    print(model.summary())
+    bootstrap = False
 
 
 # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
@@ -101,7 +116,7 @@ print(model.summary())
 memory = SequentialMemory(limit=memory_limit, window_length=WINDOW_LENGTH)
 processor = AtariProcessor()
 
-if POL == 'eps':
+if POL == 'eps' or bootstrap:
 	policy = EpsGreedyQPolicy()
 elif POL == 'bq':
 	policy = BoltzmannQPolicy()
@@ -116,9 +131,16 @@ else:
 
 dqn = DQNAgent(model=model, nb_actions=nb_actions, policy=policy, memory=memory,
                processor=processor, nb_steps_warmup=50000, gamma=.99, target_model_update=10000,
-               train_interval=4, delta_clip=1.)
+               train_interval=4, delta_clip=1.,bootstrap=bootstrap, bootstrap_models=bootstrap_models)
+if bootstrap:
+    dqn.init_bootstrap()
+    for m in range(10):
+        dqn.get_bootstrap(m)
+        dqn.compile(Adam(lr=.00025), metrics=['mae'])
+        dqn.set_bootstrap(m)
+else:
+    dqn.compile(Adam(lr=.00025), metrics=['mae'])
 
-dqn.compile(Adam(lr=.00025), metrics=['mae'])
 
 # Okay, now it's time to learn something! We visualize the training here for show, but this
 # slows down training quite a lot. You can always safely abort the training prematurely using
