@@ -28,7 +28,6 @@ args = parser.parse_args()
 
 ENV_NAME = args.envname
 POL = args.exp
-n = int(args.n)
 episodes = int(args.episodes)
 bsheads = int(args.bsheads)
 
