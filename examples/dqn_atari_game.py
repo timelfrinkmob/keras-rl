@@ -28,9 +28,9 @@ args = parser.parse_args()
 
 ENV_NAME = args.envname
 POL = args.exp
-episodes = int(args.episodes)
 bsheads = int(args.bsheads)
-
+nb_steps = args.nbsteps
+memory_limit = args.mem
 
 INPUT_SHAPE = (84, 84)
 WINDOW_LENGTH = 4
