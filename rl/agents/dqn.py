@@ -17,6 +17,7 @@ def mean_q(y_true, y_pred):
 class AbstractDQNAgent(Agent):
     """Write me
     """
+
     def __init__(self, nb_actions, memory, gamma=.99, batch_size=32, nb_steps_warmup=1000,
                  train_interval=1, memory_interval=1, target_model_update=10000,
                  delta_range=None, delta_clip=np.inf, custom_model_objects={}, **kwargs):
@@ -33,7 +34,9 @@ class AbstractDQNAgent(Agent):
             target_model_update = float(target_model_update)
 
         if delta_range is not None:
-            warnings.warn('`delta_range` is deprecated. Please use `delta_clip` instead, which takes a single scalar. For now we\'re falling back to `delta_range[1] = {}`'.format(delta_range[1]))
+            warnings.warn(
+                '`delta_range` is deprecated. Please use `delta_clip` instead, which takes a single scalar. For now we\'re falling back to `delta_range[1] = {}`'.format(
+                    delta_range[1]))
             delta_clip = delta_range[1]
 
         # Parameters.
@@ -83,32 +86,37 @@ class AbstractDQNAgent(Agent):
             'memory': get_object_config(self.memory),
         }
 
+
 # An implementation of the DQN agent as described in Mnih (2013) and Mnih (2015).
 # http://arxiv.org/pdf/1312.5602.pdf
 # http://arxiv.org/abs/1509.06461
 class DQNAgent(AbstractDQNAgent):
     """
-    # Arguments 
-        model__: A Keras model. 
-        policy__: A Keras-rl policy that are defined in [policy](https://github.com/keras-rl/keras-rl/blob/master/rl/policy.py). 
-        test_policy__: A Keras-rl policy. 
-        enable_double_dqn__: A boolean which enable target network as a second network proposed by van Hasselt et al. to decrease overfitting. 
-        enable_dueling_dqn__: A boolean which enable dueling architecture proposed by Mnih et al. 
-        dueling_type__: If `enable_dueling_dqn` is set to `True`, a type of dueling architecture must be chosen which calculate Q(s,a) from V(s) and A(s,a) differently. Note that `avg` is recommanded in the [paper](https://arxiv.org/abs/1511.06581). 
-            `avg`: Q(s,a;theta) = V(s;theta) + (A(s,a;theta)-Avg_a(A(s,a;theta))) 
-            `max`: Q(s,a;theta) = V(s;theta) + (A(s,a;theta)-max_a(A(s,a;theta))) 
-            `naive`: Q(s,a;theta) = V(s;theta) + A(s,a;theta) 
- 
+    # Arguments
+        model__: A Keras model.
+        policy__: A Keras-rl policy that are defined in [policy](https://github.com/keras-rl/keras-rl/blob/master/rl/policy.py).
+        test_policy__: A Keras-rl policy.
+        enable_double_dqn__: A boolean which enable target network as a second network proposed by van Hasselt et al. to decrease overfitting.
+        enable_dueling_dqn__: A boolean which enable dueling architecture proposed by Mnih et al.
+        dueling_type__: If `enable_dueling_dqn` is set to `True`, a type of dueling architecture must be chosen which calculate Q(s,a) from V(s) and A(s,a) differently. Note that `avg` is recommanded in the [paper](https://arxiv.org/abs/1511.06581).
+            `avg`: Q(s,a;theta) = V(s;theta) + (A(s,a;theta)-Avg_a(A(s,a;theta)))
+            `max`: Q(s,a;theta) = V(s;theta) + (A(s,a;theta)-max_a(A(s,a;theta)))
+            `naive`: Q(s,a;theta) = V(s;theta) + A(s,a;theta)
+
     """
+
     def __init__(self, model, policy=None, test_policy=None, enable_double_dqn=True, enable_dueling_network=False,
-                 dueling_type='avg', *args, **kwargs):
+                 dueling_type='avg', bootstrap= False, bootstrap_models=None, *args, **kwargs):
         super(DQNAgent, self).__init__(*args, **kwargs)
 
         # Validate (important) input.
         if hasattr(model.output, '__len__') and len(model.output) > 1:
-            raise ValueError('Model "{}" has more than one output. DQN expects a model that has a single output.'.format(model))
+            raise ValueError(
+                'Model "{}" has more than one output. DQN expects a model that has a single output.'.format(model))
         if model.output._keras_shape != (None, self.nb_actions):
-            raise ValueError('Model output "{}" has invalid shape. DQN expects a model that has one dimension for each action, in this case {}.'.format(model.output, self.nb_actions))
+            raise ValueError(
+                'Model output "{}" has invalid shape. DQN expects a model that has one dimension for each action, in this case {}.'.format(
+                    model.output, self.nb_actions))
 
         # Parameters.
         self.enable_double_dqn = enable_double_dqn
@@ -130,9 +138,11 @@ class DQNAgent(AbstractDQNAgent):
             # dueling_type == 'naive'
             # Q(s,a;theta) = V(s;theta) + A(s,a;theta)
             if self.dueling_type == 'avg':
-                outputlayer = Lambda(lambda a: K.expand_dims(a[:, 0], -1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True), output_shape=(nb_action,))(y)
+                outputlayer = Lambda(lambda a: K.expand_dims(a[:, 0], -1) + a[:, 1:] - K.mean(a[:, 1:], keepdims=True),
+                                     output_shape=(nb_action,))(y)
             elif self.dueling_type == 'max':
-                outputlayer = Lambda(lambda a: K.expand_dims(a[:, 0], -1) + a[:, 1:] - K.max(a[:, 1:], keepdims=True), output_shape=(nb_action,))(y)
+                outputlayer = Lambda(lambda a: K.expand_dims(a[:, 0], -1) + a[:, 1:] - K.max(a[:, 1:], keepdims=True),
+                                     output_shape=(nb_action,))(y)
             elif self.dueling_type == 'naive':
                 outputlayer = Lambda(lambda a: K.expand_dims(a[:, 0], -1) + a[:, 1:], output_shape=(nb_action,))(y)
             else:
@@ -141,7 +151,12 @@ class DQNAgent(AbstractDQNAgent):
             model = Model(inputs=model.input, outputs=outputlayer)
 
         # Related objects.
-        self.model = model
+        self.bootstrap_models = bootstrap_models
+        if bootstrap_models is not None:
+            self.bootstrap_heads = len(bootstrap_models)
+        else:
+            self.model = model
+        self.bootstrap = bootstrap
         if policy is None:
             policy = EpsGreedyQPolicy()
         if test_policy is None:
@@ -323,7 +338,8 @@ class DQNAgent(AbstractDQNAgent):
             # it is still useful to know the actual target to compute metrics properly.
             ins = [state0_batch] if type(self.model.input) is not list else state0_batch
             metrics = self.trainable_model.train_on_batch(ins + [targets, masks], [dummy_targets, targets])
-            metrics = [metric for idx, metric in enumerate(metrics) if idx not in (1, 2)]  # throw away individual losses
+            metrics = [metric for idx, metric in enumerate(metrics) if
+                       idx not in (1, 2)]  # throw away individual losses
             metrics += self.policy.metrics
             if self.processor is not None:
                 metrics += self.processor.metrics
@@ -332,6 +348,218 @@ class DQNAgent(AbstractDQNAgent):
             self.update_target_model_hard()
 
         return metrics
+
+    def backward_boot(self, reward, terminal):
+        # Store most recent experience in memory.
+        if self.step % self.memory_interval == 0:
+            self.memory.append(self.recent_observation, self.recent_action, reward, terminal,
+                               training=self.training)
+
+        metrics = [np.nan for _ in self.metrics_names]
+        if not self.training:
+            # We're done here. No need to update the experience memory since we only use the working
+            # memory to obtain the state over the most recent observations.
+            return metrics
+
+        # Train the network on a single stochastic batch.
+        if self.step > self.nb_steps_warmup and self.step % self.train_interval == 0:
+            experiences = self.memory.sample(self.batch_size)
+            assert len(experiences) == self.batch_size
+
+            # Start by extracting the necessary parameters (we use a vectorized implementation).
+            state0_batch = []
+            reward_batch = []
+            action_batch = []
+            terminal1_batch = []
+            state1_batch = []
+            for e in experiences:
+                state0_batch.append(e.state0)
+                state1_batch.append(e.state1)
+                reward_batch.append(e.reward)
+                action_batch.append(e.action)
+                terminal1_batch.append(0. if e.terminal1 else 1.)
+
+            # Prepare and validate parameters.
+            state0_batch = self.process_state_batch(state0_batch)
+            state1_batch = self.process_state_batch(state1_batch)
+            terminal1_batch = np.array(terminal1_batch)
+            reward_batch = np.array(reward_batch)
+            assert reward_batch.shape == (self.batch_size,)
+            assert terminal1_batch.shape == reward_batch.shape
+            assert len(action_batch) == len(reward_batch)
+
+            # Compute Q values for mini-batch update.
+            if self.enable_double_dqn:
+                # According to the paper "Deep Reinforcement Learning with Double Q-learning"
+                # (van Hasselt et al., 2015), in Double DQN, the online network predicts the actions
+                # while the target network is used to estimate the Q value.
+                q_values = self.model.predict_on_batch(state1_batch)
+                assert q_values.shape == (self.batch_size, self.nb_actions)
+                actions = np.argmax(q_values, axis=1)
+                assert actions.shape == (self.batch_size,)
+
+                # Now, estimate Q values using the target network but select the values with the
+                # highest Q value wrt to the online model (as computed above).
+                target_q_values = self.target_model.predict_on_batch(state1_batch)
+                assert target_q_values.shape == (self.batch_size, self.nb_actions)
+                q_batch = target_q_values[range(self.batch_size), actions]
+            else:
+                # Compute the q_values given state1, and extract the maximum for each sample in the batch.
+                # We perform this prediction on the target_model instead of the model for reasons
+                # outlined in Mnih (2015). In short: it makes the algorithm more stable.
+                target_q_values = self.target_model.predict_on_batch(state1_batch)
+                assert target_q_values.shape == (self.batch_size, self.nb_actions)
+                q_batch = np.max(target_q_values, axis=1).flatten()
+            assert q_batch.shape == (self.batch_size,)
+
+            targets = np.zeros((self.batch_size, self.nb_actions))
+            dummy_targets = np.zeros((self.batch_size,))
+            masks = np.zeros((self.batch_size, self.nb_actions))
+
+            # Compute r_t + gamma * max_a Q(s_t+1, a) and update the target targets accordingly,
+            # but only for the affected output units (as given by action_batch).
+            discounted_reward_batch = self.gamma * q_batch
+            # Set discounted reward to zero for all states that were terminal.
+            discounted_reward_batch *= terminal1_batch
+            assert discounted_reward_batch.shape == reward_batch.shape
+            Rs = reward_batch + discounted_reward_batch
+            for idx, (target, mask, R, action) in enumerate(zip(targets, masks, Rs, action_batch)):
+                target[action] = R  # update action with estimated accumulated reward
+                dummy_targets[idx] = R
+                mask[action] = 1.  # enable loss for this specific action
+            targets = np.array(targets).astype('float32')
+            masks = np.array(masks).astype('float32')
+
+            # Finally, perform a single update on the entire batch. We use a dummy target since
+            # the actual loss is computed in a Lambda layer that needs more complex input. However,
+            # it is still useful to know the actual target to compute metrics properly.
+            ins = [state0_batch] if type(self.model.input) is not list else state0_batch
+            metrics = self.trainable_model.train_on_batch(ins + [targets, masks], [dummy_targets, targets])
+            metrics = [metric for idx, metric in enumerate(metrics) if
+                       idx not in (1, 2)]  # throw away individual losses
+            metrics += self.policy.metrics
+            if self.processor is not None:
+                metrics += self.processor.metrics
+
+        if self.target_model_update >= 1 and self.step % self.target_model_update == 0:
+            self.update_target_model_hard()
+
+        return metrics
+
+    def backward_bootstrap(self, reward, terminal):
+        # Store most recent experience in memory.
+        if self.step % self.memory_interval == 0:
+            self.memory.append(self.recent_observation, self.recent_action, reward, terminal,
+                               training=self.training)
+
+        metrics = [np.nan for _ in self.metrics_names]
+        if not self.training:
+            # We're done here. No need to update the experience memory since we only use the working
+            # memory to obtain the state over the most recent observations.
+            return metrics
+
+
+        metrics_output = []
+
+        # Train the network on a single stochastic batch.
+        if self.step > self.nb_steps_warmup and self.step % self.train_interval == 0:
+            experiences = self.memory.sample(self.batch_size)
+            assert len(experiences) == self.batch_size
+
+            # Start by extracting the necessary parameters (we use a vectorized implementation).
+            state0_batch = []
+            reward_batch = []
+            action_batch = []
+            terminal1_batch = []
+            state1_batch = []
+            for e in experiences:
+                state0_batch.append(e.state0)
+                state1_batch.append(e.state1)
+                reward_batch.append(e.reward)
+                action_batch.append(e.action)
+                terminal1_batch.append(0. if e.terminal1 else 1.)
+
+            # Prepare and validate parameters.
+            state0_batch = self.process_state_batch(state0_batch)
+            state1_batch = self.process_state_batch(state1_batch)
+            terminal1_batch = np.array(terminal1_batch)
+            reward_batch = np.array(reward_batch)
+            assert reward_batch.shape == (self.batch_size,)
+            assert terminal1_batch.shape == reward_batch.shape
+            assert len(action_batch) == len(reward_batch)
+
+            for m in range(self.bootstrap_heads):
+                self.get_bootstrap(m)
+                # Compute the q_values given state1, and extract the maximum for each sample in the batch.
+                # We perform this prediction on the target_model instead of the model for reasons
+                # outlined in Mnih (2015). In short: it makes the algorithm more stable.
+                target_q_values = self.target_model.predict_on_batch(state1_batch)
+                assert target_q_values.shape == (self.batch_size, self.nb_actions)
+                q_batch = np.max(target_q_values, axis=1).flatten()
+                assert q_batch.shape == (self.batch_size,)
+
+                targets = np.zeros((self.batch_size, self.nb_actions))
+                dummy_targets = np.zeros((self.batch_size,))
+                masks = np.zeros((self.batch_size, self.nb_actions))
+
+                # Compute r_t + gamma * max_a Q(s_t+1, a) and update the target targets accordingly,
+                # but only for the affected output units (as given by action_batch).
+                discounted_reward_batch = self.gamma * q_batch
+                # Set discounted reward to zero for all states that were terminal.
+                discounted_reward_batch *= terminal1_batch
+                assert discounted_reward_batch.shape == reward_batch.shape
+                Rs = reward_batch + discounted_reward_batch
+                for idx, (target, mask, R, action) in enumerate(zip(targets, masks, Rs, action_batch)):
+                    target[action] = R  # update action with estimated accumulated reward
+                    dummy_targets[idx] = R
+                    mask[action] = 1.  # enable loss for this specific action
+                targets = np.array(targets).astype('float32')
+                masks = np.array(masks).astype('float32')
+
+                # Finally, perform a single update on the entire batch. We use a dummy target since
+                # the actual loss is computed in a Lambda layer that needs more complex input. However,
+                # it is still useful to know the actual target to compute metrics properly.
+                ins = [state0_batch] if type(self.model.input) is not list else state0_batch
+                metrics = self.trainable_model.train_on_batch(ins + [targets, masks], [dummy_targets, targets])
+                metrics = [metric for idx, metric in enumerate(metrics) if
+                           idx not in (1, 2)]  # throw away individual losses
+                metrics += self.policy.metrics
+                if self.processor is not None:
+                    metrics += self.processor.metrics
+
+                if self.target_model_update >= 1 and self.step % self.target_model_update == 0:
+                    self.update_target_model_hard()
+                self.set_bootstrap(m)
+                metrics_output += metrics
+
+        return metrics
+
+    def init_bootstrap(self):
+        self.bootstrap_target_models = []
+        self.bootstrap_trainable_models = []
+        self.bootstrap_compiled = []
+        self.bootstrap_memory = []
+        for m in range(self.bootstrap_heads):
+            self.bootstrap_target_models.append(None)
+            self.bootstrap_trainable_models.append(None)
+            self.bootstrap_compiled.append(None)
+            self.bootstrap_memory.append(self.memory)
+
+
+    def get_bootstrap(self, m):
+        self.model = self.bootstrap_models[m]
+        self.target_model = self.bootstrap_target_models[m]
+        self.trainable_model = self.bootstrap_trainable_models[m]
+        self.compiled = self.bootstrap_compiled[m]
+        self.memory = self.bootstrap_memory[m]
+
+
+    def set_bootstrap(self, m):
+        self.bootstrap_models[m] = self.model
+        self.bootstrap_target_models[m] = self.target_model
+        self.bootstrap_trainable_models[m] = self.trainable_model
+        self.bootstrap_compiled[m] = self.compiled
+        self.bootstrap_memory[m] = self.memory
 
     @property
     def layers(self):
@@ -372,6 +600,7 @@ class DQNAgent(AbstractDQNAgent):
 class NAFLayer(Layer):
     """Write me
     """
+
     def __init__(self, nb_actions, mode='full', **kwargs):
         if mode not in ('full', 'diag'):
             raise RuntimeError('Unknown mode "{}" in NAFLayer.'.format(self.mode))
@@ -535,7 +764,7 @@ class NAFLayer(Layer):
         for i, shape in enumerate(input_shape):
             if len(shape) != 2:
                 raise RuntimeError("Input {} has {} dimensions but should have 2".format(i, len(shape)))
-        assert self.mode in ('full','diag')
+        assert self.mode in ('full', 'diag')
         if self.mode == 'full':
             expected_elements = (self.nb_actions * self.nb_actions + self.nb_actions) // 2
         elif self.mode == 'diag':
@@ -557,6 +786,7 @@ class NAFLayer(Layer):
 class NAFAgent(AbstractDQNAgent):
     """Write me
     """
+
     def __init__(self, V_model, L_model, mu_model, random_process=None,
                  covariance_mode='full', *args, **kwargs):
         super(NAFAgent, self).__init__(*args, **kwargs)
@@ -607,13 +837,14 @@ class NAFAgent(AbstractDQNAgent):
             observation_shapes = [i._keras_shape[1:] for i in self.V_model.input]
         else:
             observation_shapes = [self.V_model.input._keras_shape[1:]]
-        os_in = [Input(shape=shape, name='observation_input_{}'.format(idx)) for idx, shape in enumerate(observation_shapes)]
+        os_in = [Input(shape=shape, name='observation_input_{}'.format(idx)) for idx, shape in
+                 enumerate(observation_shapes)]
         L_out = self.L_model([a_in] + os_in)
         V_out = self.V_model(os_in)
 
         mu_out = self.mu_model(os_in)
         A_out = NAFLayer(self.nb_actions, mode=self.covariance_mode)([L_out, mu_out, a_in])
-        combined_out = Lambda(lambda x: x[0]+x[1], output_shape=lambda x: x[0])([A_out, V_out])
+        combined_out = Lambda(lambda x: x[0] + x[1], output_shape=lambda x: x[0])([A_out, V_out])
         combined = Model(inputs=[a_in] + os_in, outputs=[combined_out])
         # Compile combined model.
         if self.target_model_update < 1.:
