@@ -25,6 +25,7 @@ parser.add_argument('--n', default=10)
 parser.add_argument('--episodes', default=2000)
 parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps', 'noisy', 'bs'], default='eps')
 parser.add_argument('--bsheads', default=10)
+parser.add_argument('--seed', default=1)
 args = parser.parse_args()
 
 
@@ -34,6 +35,7 @@ POL = args.exp
 n = int(args.n)
 episodes = int(args.episodes)
 bsheads = int(args.bsheads)
+seed = int(args.seed)
 
 
 nb_steps = (n + 9) * (episodes + 2)
@@ -43,8 +45,8 @@ memory_limit = nb_steps
 # Get the environment and extract the number of actions.
 env = gym.make(ENV_NAME)
 env.__init__(n=n)
-#np.random.seed(123)
-#env.seed(123)
+np.random.seed(seed)
+env.seed(seed)
 nb_actions = env.action_space.n
 input_shape = (1,) + env.observation_space.shape
 print(input_shape)
@@ -78,6 +80,7 @@ if POL == 'bs':
     model = bootstrap_models[0]
     print(model.summary())
     bootstrap = True
+    memory_limit = (int)(memory_limit/bsheads)
 else:
     model = make_model()
     bootstrap_models= None
@@ -103,7 +106,7 @@ else:
 
 
 dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=5*(n + 9),
-                   target_model_update=1e-2, policy=policy, bootstrap=bootstrap, bootstrap_models=bootstrap_models)
+                   target_model_update=1e-2, policy=policy, bootstrap=bootstrap, bootstrap_models=bootstrap_models, enable_double_dqn=bootstrap)
 
 
 if bootstrap:
@@ -127,7 +130,7 @@ print(checkpoint_weights_filename)
 
 callbacks = [ModelIntervalCheckpoint(checkpoint_weights_filename, interval=(nb_steps/10), verbose =1)]
 callbacks += [FileLogger(log_filename, interval=(nb_steps/10))]
-dqn.fit(env, nb_steps=nb_steps, callbacks=callbacks, verbose =1,log_interval=(nb_steps/10))
+dqn.fit(env, nb_steps=nb_steps, callbacks=callbacks, verbose =2,log_interval=(nb_steps/10))
 
 # After training is done, we save the final weights.
 dqn.save_weights('models/dqn_' + '_'.join('{}:{}'.format(key, val) for key, val in sorted(vars(args).items())) + '_final.h5f', overwrite=True)
