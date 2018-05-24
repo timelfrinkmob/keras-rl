@@ -239,6 +239,8 @@ class DQNAgent(AbstractDQNAgent):
 
     def forward(self, observation):
         # Select an action.
+        if self.bootstrap:
+            self.steps += 1
         state = self.memory.get_recent_state(observation)
         q_values = self.compute_q_values(state)
         if self.training:
@@ -253,6 +255,11 @@ class DQNAgent(AbstractDQNAgent):
         return action
 
     def backward(self, reward, terminal):
+
+        if self.bootstrap:
+            temp_steps = self.step
+            self.step = self.steps
+
         # Store most recent experience in memory.
         if self.step % self.memory_interval == 0:
             self.memory.append(self.recent_observation, self.recent_action, reward, terminal,
@@ -262,6 +269,8 @@ class DQNAgent(AbstractDQNAgent):
         if not self.training:
             # We're done here. No need to update the experience memory since we only use the working
             # memory to obtain the state over the most recent observations.
+            if self.bootstrap:
+                self.step = temp_steps
             return metrics
 
         # Train the network on a single stochastic batch.
@@ -346,6 +355,11 @@ class DQNAgent(AbstractDQNAgent):
 
         if self.target_model_update >= 1 and self.step % self.target_model_update == 0:
             self.update_target_model_hard()
+
+
+        if self.bootstrap:
+            self.step = temp_steps
+
 
         return metrics
 
@@ -539,11 +553,13 @@ class DQNAgent(AbstractDQNAgent):
         self.bootstrap_trainable_models = []
         self.bootstrap_compiled = []
         self.bootstrap_memory = []
+        self.bootstrap_steps = []
         for m in range(self.bootstrap_heads):
             self.bootstrap_target_models.append(None)
             self.bootstrap_trainable_models.append(None)
             self.bootstrap_compiled.append(None)
             self.bootstrap_memory.append(self.memory)
+            self.bootstrap_steps.append(0)
 
 
     def get_bootstrap(self, m):
@@ -552,6 +568,7 @@ class DQNAgent(AbstractDQNAgent):
         self.trainable_model = self.bootstrap_trainable_models[m]
         self.compiled = self.bootstrap_compiled[m]
         self.memory = self.bootstrap_memory[m]
+        self.steps = self.bootstrap_steps[m]
 
 
     def set_bootstrap(self, m):
@@ -560,6 +577,7 @@ class DQNAgent(AbstractDQNAgent):
         self.bootstrap_trainable_models[m] = self.trainable_model
         self.bootstrap_compiled[m] = self.compiled
         self.bootstrap_memory[m] = self.memory
+        self.bootstrap_steps[m] = self.steps
 
     @property
     def layers(self):
