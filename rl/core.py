@@ -218,7 +218,9 @@ class Agent(object):
                         self.get_bootstrap(m)
                         append = randint(0, 1) ==1
                         if append:
-                            metrics =self.backward_boot(reward, terminal=done)
+                            #metrics =self.backward_boot(reward, terminal=done)
+                            metrics = self.backward(reward, terminal=done)
+
                         self.set_bootstrap(m)
                 else:
                     metrics = self.backward(reward, terminal=done)
