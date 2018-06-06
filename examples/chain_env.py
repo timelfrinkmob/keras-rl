@@ -106,7 +106,7 @@ else:
 
 
 dqn = DQNAgent(model=model, nb_actions=nb_actions, memory=memory, nb_steps_warmup=5*(n + 9), train_interval=4,
-                   target_model_update=1e-2, policy=policy, bootstrap=bootstrap, bootstrap_models=bootstrap_models, enable_double_dqn=bootstrap)
+                   target_model_update=1e-2, policy=policy, bootstrap=bootstrap, bootstrap_models=bootstrap_models)
 
 
 if bootstrap:
