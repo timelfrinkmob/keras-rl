@@ -76,6 +76,7 @@ input_shape = (WINDOW_LENGTH,) + INPUT_SHAPE
 
 
 def make_model():
+    model = Sequential()
     if K.image_dim_ordering() == 'tf':
         # (width, height, channels)
         model.add(Permute((2, 3, 1), input_shape=input_shape))
