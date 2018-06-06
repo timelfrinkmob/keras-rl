@@ -5,7 +5,7 @@ do
     do
 	    for exp in bs eps noisy leps;
 	    do
-            python examples/gym_env.py --envname "$envname" --exp "$exp" --seed "$seed"
+            python examples/gym_env.py --envname "$envname" --exp "$exp" --seed "$seed" --nbsteps 200000 --mem 50000
         done
     done
 done
