@@ -36,7 +36,7 @@ seed = int(args.seed)
 memory_limit = args.mem
 
 
-nb_steps = arg.nbsteps
+nb_steps = args.nbsteps
 
 
 # Get the environment and extract the number of actions.
