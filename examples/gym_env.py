@@ -20,7 +20,6 @@ from rl.callbacks import FileLogger, ModelIntervalCheckpoint
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--envname', type=str, default='MountainCar-v0')
-parser.add_argument('--n', default=10)
 parser.add_argument('--nbsteps', default=50000)
 parser.add_argument('--mem', default=50000)
 parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps', 'noisy', 'bs'], default='eps')
@@ -32,7 +31,6 @@ args = parser.parse_args()
 
 ENV_NAME = args.envname
 POL = args.exp
-n = int(args.n)
 bsheads = int(args.bsheads)
 seed = int(args.seed)
 memory_limit = args.mem
