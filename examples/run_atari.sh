@@ -5,7 +5,7 @@ do
     do
 	    for exp in bs eps noisy leps;
 	    do
-            python examples/gym_atari.py --envname "$envname" --exp "$exp" --seed "$seed"
+            python examples/atari_env.py --envname "$envname" --exp "$exp" --seed "$seed"
         done
     done
 done
