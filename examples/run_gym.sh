@@ -3,7 +3,7 @@ for seed in 1 2 3
 do
     for envname in MountainCar-v0 CartPole-v0;
     do
-	    for exp in bs eps noisy leps;
+	    for exp in eps noisy leps;
 	    do
             python examples/gym_env.py --envname "$envname" --exp "$exp" --seed "$seed"
         done
