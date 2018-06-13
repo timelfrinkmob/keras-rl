@@ -77,7 +77,6 @@ if POL == 'bs':
     model = bootstrap_models[0]
     print(model.summary())
     bootstrap = True
-    memory_limit = (int)(memory_limit/bsheads)
 else:
     model = make_model()
     bootstrap_models= None
