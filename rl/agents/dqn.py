@@ -264,8 +264,6 @@ class DQNAgent(AbstractDQNAgent):
         if not self.training:
             # We're done here. No need to update the experience memory since we only use the working
             # memory to obtain the state over the most recent observations.
-            if self.bootstrap:
-                self.step = temp_steps
             return metrics
 
         # Train the network on a single stochastic batch.
