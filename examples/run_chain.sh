@@ -9,6 +9,6 @@ do
         done
     done
 done
-aws s3 cp ./models/ s3://thesis-tim/models/ --recursive
-aws s3 cp ./logs/ s3://thesis-tim/logs/ --recursive
+aws s3 cp ./models/ s3://thesis-tim-files/models/chain/ --recursive
+aws s3 cp ./logs/ s3://thesis-tim-files/logs/chain/ --recursive
 sudo shutdown -P now
