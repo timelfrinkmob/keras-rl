@@ -334,3 +334,68 @@ class BoltzmannGumbelQPolicy(Policy):
         config = super(BoltzmannGumbelQPolicy, self).get_config()
         config['C'] = self.C
         return config
+
+
+class BootstrapPolicy(Policy):
+    """Implement the greedy policy
+
+    BootstrapPolicy returns the current best action of a given head
+    """
+    def select_action(self, q_values):
+        """Return the selected action
+
+        # Arguments
+            q_values (np.ndarray): List of the estimations of Q for each action
+
+        # Returns
+            Selection action
+        """
+        assert q_values.ndim == 1
+        action = np.argmax(q_values)
+        return action
+
+
+class BootstrapPolicy(Policy):
+    """Implement the greedy policy
+
+    BootstrapPolicy returns the current best action of a given head
+    """
+
+    def __init__(self, head=0, total_heads=1):
+        super(BootstrapPolicy, self).__init__()
+        self.head = head
+        self.total_heads = total_heads
+
+    def select_action(self, q_values):
+        """Return the selected action
+
+        # Arguments
+            q_values (np.ndarray): List of the estimations of Q for each action
+
+        # Returns
+            Selection action
+        """
+        assert q_values.ndim == 1
+        nb_actions = q_values.shape[0] / self.total_heads
+        start = int(self.head*nb_actions)
+        end = int((self.head+1)*nb_actions)
+        q_values_head = q_values[start:end]
+
+        action = np.argmax(q_values_head)
+        action += start
+        return int(action)
+
+
+    def set_head(self, head):
+        self.head = head
+
+    def get_config(self):
+        """Return configurations of BootstrapPolicy
+
+        # Returns
+            Dict of config
+        """
+        config = super(BootstrapPolicy, self).get_config()
+        config['head'] = self.head
+        config['total_heads'] = self.total_heads
+        return config
