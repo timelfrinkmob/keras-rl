@@ -1,6 +1,7 @@
 import numpy as np
 import gym
 import argparse
+from PIL import Image
 
 from keras import backend as K
 from keras.models import Model
@@ -18,13 +19,38 @@ from rl.callbacks import FileLogger, ModelIntervalCheckpoint
 import gym_chain
 from keras.utils import plot_model
 
+from rl.core import Processor
+
+
+INPUT_SHAPE = (84, 84)
+WINDOW_LENGTH = 4
+
+
+class AtariProcessor(Processor):
+    def process_observation(self, observation):
+        assert observation.ndim == 3  # (height, width, channel)
+        img = Image.fromarray(observation)
+        img = img.resize(INPUT_SHAPE).convert('L')  # resize and convert to grayscale
+        processed_observation = np.array(img)
+        assert processed_observation.shape == INPUT_SHAPE
+        return processed_observation.astype('uint8')  # saves storage in experience memory
+
+    def process_state_batch(self, batch):
+        # We could perform this processing step in `process_observation`. In this case, however,
+        # we would need to store a `float32` array instead, which is 4x more memory intensive than
+        # an `uint8` array. This matters if we store 1M observations.
+        processed_batch = batch.astype('float32') / 255.
+        return processed_batch
+
+    def process_reward(self, reward):
+        return np.clip(reward, -1., 1.)
 
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--envname', type=str, default='MountainCar-v0')
-parser.add_argument('--nbsteps', default=200000)
-parser.add_argument('--mem', default=50000)
+parser.add_argument('--envname', type=str, default='BreakoutDeterministic-v4')
+parser.add_argument('--nbsteps', default=1750000)
+parser.add_argument('--mem', default=1000000)
 parser.add_argument('--exp', choices=['eps', 'bq', 'bgq', 'leps', 'noisy', 'bs'], default='eps')
 parser.add_argument('--bsheads', default=1)
 parser.add_argument('--seed', default=1)
@@ -47,7 +73,7 @@ np.random.seed(seed)
 env.seed(seed)
 nb_actions = env.action_space.n
 
-input_shape = (1,) + env.observation_space.shape
+input_shape = (WINDOW_LENGTH,) + INPUT_SHAPE
 
 
 def make_model():
@@ -109,7 +135,8 @@ else:
 plot_model(model,to_file='demo.png',show_shapes=True)
 # Finally, we configure and compile our agent. You can use every built-in Keras optimizer and
 # even the metrics!
-memory = SequentialMemory(limit=memory_limit, window_length=1)
+memory = SequentialMemory(limit=memory_limit, window_length=WINDOW_LENGTH)
+processor = AtariProcessor()
 
 if POL == 'eps':
     policy = EpsGreedyQPolicy()
@@ -124,12 +151,12 @@ else:
     policy = GreedyQPolicy()
 
 
-dqn = DQNAgent(model=model, nb_actions=nb_actions, heads=bsheads, memory=memory, nb_steps_warmup=10, train_interval=4,
-                   target_model_update=1e-2, policy=policy,enable_double_dqn=bootstrap)
+dqn = DQNAgent(model=model, nb_actions=nb_actions, heads=bsheads, memory=memory, nb_steps_warmup=50000, processor=processor, train_interval=4,
+                   target_model_update=10000, delta_clip=1., gamma=.99, policy=policy,enable_double_dqn=bootstrap)
 
 
 
-dqn.compile(Adam(lr=0.025), metrics=['mae'])
+dqn.compile(Adam(lr=.00025), metrics=['mae'])
 
 # Okay, now it's time to learn something! We visualize the training here for show, but this
 # slows down training quite a lot. You can always safely abort the training prematurely using
