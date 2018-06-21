@@ -7,7 +7,7 @@ from keras import backend as K
 from keras.models import Model
 
 from keras.models import Sequential
-from keras.layers import Dense, Activation, Flatten,Input, Concatenate, Add#, NoisyDense, BatchNormalization
+from keras.layers import Dense, Activation, Flatten,Input, Concatenate, Add, Permute, Convolution2D#, NoisyDense, BatchNormalization
 from keras.optimizers import Adam
 import keras.layers as ke
 
