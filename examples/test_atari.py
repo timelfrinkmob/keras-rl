@@ -79,16 +79,28 @@ input_shape = (WINDOW_LENGTH,) + INPUT_SHAPE
 def make_model():
     # Next, we build a very simple model.
     model = Sequential()
-    model.add(Flatten(input_shape=input_shape))
-    model.add(Dense(16))
+    if K.image_dim_ordering() == 'tf':
+        # (width, height, channels)
+        model.add(Permute((2, 3, 1), input_shape=input_shape))
+    elif K.image_dim_ordering() == 'th':
+        # (channels, width, height)
+        model.add(Permute((1, 2, 3), input_shape=input_shape))
+    else:
+        raise RuntimeError('Unknown image_dim_ordering.')
+    model.add(Convolution2D(32, 8, 8, subsample=(4, 4)))
     model.add(Activation('relu'))
+    model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
+    model.add(Activation('relu'))
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
+    model.add(Activation('relu'))
+    model.add(Flatten())
 
     if POL == 'noisy':
-        model.add(NoisyDense(16))
+        model.add(NoisyDense(512))
         model.add(Activation('relu'))
         model.add(NoisyDense(nb_actions))
     else:
-        model.add(Dense(16))
+        model.add(Dense(512))
         model.add(Activation('relu'))
         model.add(Dense(nb_actions))
     model.add(Activation('linear'))
@@ -98,16 +110,28 @@ def make_model():
 def make_model_bs():
     # Next, we build a very simple model.
     model = Sequential()
-    model.add(Flatten(input_shape=input_shape))
-    model.add(Dense(16))
+    if K.image_dim_ordering() == 'tf':
+        # (width, height, channels)
+        model.add(Permute((2, 3, 1), input_shape=input_shape))
+    elif K.image_dim_ordering() == 'th':
+        # (channels, width, height)
+        model.add(Permute((1, 2, 3), input_shape=input_shape))
+    else:
+        raise RuntimeError('Unknown image_dim_ordering.')
+    model.add(Convolution2D(32, 8, 8, subsample=(4, 4)))
     model.add(Activation('relu'))
+    model.add(Convolution2D(64, 4, 4, subsample=(2, 2)))
+    model.add(Activation('relu'))
+    model.add(Convolution2D(64, 3, 3, subsample=(1, 1)))
+    model.add(Activation('relu'))
+    model.add(Flatten())
 
     input = Input(shape=input_shape)
     x = model(input)
 
     heads = []
     for _ in range(bsheads):
-        head =Dense(16, activation='relu')(x)
+        head =Dense(512, activation='relu')(x)
         head = Dense(nb_actions, activation='linear')(head)
         heads.append(head)
 
