@@ -337,12 +337,15 @@ class BoltzmannGumbelQPolicy(Policy):
         return config
 
 
+    
 class BootstrapPolicy(Policy):
-    """Implement the greedy policy
-
-    BootstrapPolicy returns the current best action of a given head
+    """Implement the epsilon greedy policy
+    
+    Eps Greedy policy either:
+    
+    - takes a random action with probability epsilon
+    - takes current best action with prob (1 - epsilon)
     """
-
     def __init__(self, eps=.1):
         super(BootstrapPolicy, self).__init__()
         self.eps = eps
@@ -351,10 +354,8 @@ class BootstrapPolicy(Policy):
 
     def select_action(self, q_values):
         """Return the selected action
-
         # Arguments
             q_values (np.ndarray): List of the estimations of Q for each action
-
         # Returns
             Selection action
         """
@@ -370,20 +371,15 @@ class BootstrapPolicy(Policy):
             action = np.argmax(q_values_head)
         action += start
         return int(action)
-
-
+    
     def set_head(self, head):
         self.head = head
-
+        
     def get_config(self):
-        """Return configurations of BootstrapPolicy
-
+        """Return configurations of EpsGreedyPolicy
         # Returns
             Dict of config
         """
         config = super(BootstrapPolicy, self).get_config()
-        config['head'] = self.head
-        config['total_heads'] = self.total_heads
         config['eps'] = self.eps
-
         return config
