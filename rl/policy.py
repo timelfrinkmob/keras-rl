@@ -342,25 +342,6 @@ class BootstrapPolicy(Policy):
 
     BootstrapPolicy returns the current best action of a given head
     """
-    def select_action(self, q_values):
-        """Return the selected action
-
-        # Arguments
-            q_values (np.ndarray): List of the estimations of Q for each action
-
-        # Returns
-            Selection action
-        """
-        assert q_values.ndim == 1
-        action = np.argmax(q_values)
-        return action
-
-
-class BootstrapPolicy(Policy):
-    """Implement the greedy policy
-
-    BootstrapPolicy returns the current best action of a given head
-    """
 
     def __init__(self, eps=.1):
         super(BootstrapPolicy, self).__init__()
