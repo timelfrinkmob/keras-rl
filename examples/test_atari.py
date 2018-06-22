@@ -165,11 +165,12 @@ processor = AtariProcessor()
 if POL == 'eps':
     policy = EpsGreedyQPolicy()
 elif POL == 'bs':
-    policy = BootstrapPolicy(total_heads = bsheads)
+    policy = LinearAnnealedPolicy(BootstrapPolicy(total_heads = bsheads), attr='eps', value_max=1., value_min=.01, value_test=.01,
+                              nb_steps=(nb_steps/2))
 elif POL == 'bgq':
     policy = BoltzmannGumbelQPolicy()
 elif POL == 'leps':
-    policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.02, value_test=.02,
+    policy = LinearAnnealedPolicy(EpsGreedyQPolicy(), attr='eps', value_max=1., value_min=.01, value_test=.01,
                               nb_steps=(nb_steps/2))
 else:
     policy = GreedyQPolicy()
