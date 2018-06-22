@@ -361,10 +361,11 @@ class BootstrapPolicy(Policy):
     BootstrapPolicy returns the current best action of a given head
     """
 
-    def __init__(self, head=0, total_heads=1):
+    def __init__(self, head=0, total_heads=1, eps=.1):
         super(BootstrapPolicy, self).__init__()
         self.head = head
         self.total_heads = total_heads
+        self.eps = eps
 
     def select_action(self, q_values):
         """Return the selected action
@@ -380,8 +381,11 @@ class BootstrapPolicy(Policy):
         start = int(self.head*nb_actions)
         end = int((self.head+1)*nb_actions)
         q_values_head = q_values[start:end]
-
-        action = np.argmax(q_values_head)
+        
+        if np.random.uniform() < self.eps:
+            action = np.random.random_integers(0, nb_actions-1)
+        else:
+            action = np.argmax(q_values_head)
         action += start
         return int(action)
 
@@ -398,4 +402,6 @@ class BootstrapPolicy(Policy):
         config = super(BootstrapPolicy, self).get_config()
         config['head'] = self.head
         config['total_heads'] = self.total_heads
+        config['eps'] = self.eps
+
         return config
