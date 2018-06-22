@@ -59,6 +59,8 @@ class LinearAnnealedPolicy(Policy):
         self.value_min = value_min
         self.value_test = value_test
         self.nb_steps = nb_steps
+        self.head = 0
+
 
     def get_current_value(self):
         """Return current annealing value
@@ -75,6 +77,9 @@ class LinearAnnealedPolicy(Policy):
             value = self.value_test
         return value
 
+    def set_head(self, head):
+        self.head = head
+        
     def select_action(self, **kwargs):
         """Choose an action to perform
 
