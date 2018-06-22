@@ -361,10 +361,10 @@ class BootstrapPolicy(Policy):
     BootstrapPolicy returns the current best action of a given head
     """
 
-    def __init__(self, eps=.1, head=0, total_heads=1):
+    def __init__(self, eps=.1):
         super(BootstrapPolicy, self).__init__()
-        self.head = head
-        self.total_heads = total_heads
+        self.head = 0
+        self.total_heads = 10
         self.eps = eps
 
     def select_action(self, q_values):
