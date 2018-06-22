@@ -17,6 +17,7 @@ class Policy(object):
     # Arguments
         agent (rl.core.Agent): Agent used
     """
+
     def _set_agent(self, agent):
         self.agent = agent
 
@@ -42,10 +43,11 @@ class Policy(object):
 
 class LinearAnnealedPolicy(Policy):
     """Implement the linear annealing policy
-    
-    Linear Annealing Policy computes a current threshold value and 
+
+    Linear Annealing Policy computes a current threshold value and
     transfers it to an inner policy which chooses the action. The threshold
     value is following a linear function decreasing over time."""
+
     def __init__(self, inner_policy, attr, value_max, value_min, value_test, nb_steps):
         if not hasattr(inner_policy, attr):
             print(inner_policy)
@@ -60,7 +62,6 @@ class LinearAnnealedPolicy(Policy):
         self.value_test = value_test
         self.nb_steps = nb_steps
         self.head = 0
-
 
     def get_current_value(self):
         """Return current annealing value
@@ -78,8 +79,8 @@ class LinearAnnealedPolicy(Policy):
         return value
 
     def set_head(self, head):
-        self.head = head
-        
+        self.inner_policy.set_head(head)
+
     def select_action(self, **kwargs):
         """Choose an action to perform
 
@@ -126,12 +127,13 @@ class LinearAnnealedPolicy(Policy):
 
 class EpsGreedyQPolicy(Policy):
     """Implement the epsilon greedy policy
-    
+
     Eps Greedy policy either:
-    
+
     - takes a random action with probability epsilon
     - takes current best action with prob (1 - epsilon)
     """
+
     def __init__(self, eps=.1):
         super(EpsGreedyQPolicy, self).__init__()
         self.eps = eps
@@ -149,7 +151,7 @@ class EpsGreedyQPolicy(Policy):
         nb_actions = q_values.shape[0]
 
         if np.random.uniform() < self.eps:
-            action = np.random.random_integers(0, nb_actions-1)
+            action = np.random.random_integers(0, nb_actions - 1)
         else:
             action = np.argmax(q_values)
         return action
@@ -170,6 +172,7 @@ class GreedyQPolicy(Policy):
 
     Greedy policy returns the current best action according to q_values
     """
+
     def select_action(self, q_values):
         """Return the selected action
 
@@ -190,6 +193,7 @@ class BoltzmannQPolicy(Policy):
     Boltzmann Q Policy builds a probability law on q values and returns
     an action selected randomly according to this law.
     """
+
     def __init__(self, tau=1., clip=(-500., 500.)):
         super(BoltzmannQPolicy, self).__init__()
         self.tau = tau
@@ -234,6 +238,7 @@ class MaxBoltzmannQPolicy(Policy):
 
     https://pure.uva.nl/ws/files/3153478/8461_UBA003000033.pdf
     """
+
     def __init__(self, eps=.1, tau=1., clip=(-500., 500.)):
         super(MaxBoltzmannQPolicy, self).__init__()
         self.eps = eps
@@ -321,7 +326,7 @@ class BoltzmannGumbelQPolicy(Policy):
         assert self.action_counts is not None, self.agent.step
         assert self.action_counts.shape == q_values.shape, (self.action_counts.shape, q_values.shape)
 
-        beta = self.C/np.sqrt(self.action_counts)
+        beta = self.C / np.sqrt(self.action_counts)
         Z = np.random.gumbel(size=q_values.shape)
 
         perturbation = beta * Z
@@ -342,20 +347,20 @@ class BoltzmannGumbelQPolicy(Policy):
         return config
 
 
-    
 class BootstrapPolicy(Policy):
     """Implement the epsilon greedy policy
-    
+
     Eps Greedy policy either:
-    
+
     - takes a random action with probability epsilon
     - takes current best action with prob (1 - epsilon)
     """
-    def __init__(self, eps=.1):
+
+    def __init__(self, eps=.1, head=0, total_heads =10):
         super(BootstrapPolicy, self).__init__()
         self.eps = eps
-        self.head = 0
-        self.total_heads = 10
+        self.head = head
+        self.total_heads = total_heads
 
     def select_action(self, q_values):
         """Return the selected action
@@ -364,22 +369,23 @@ class BootstrapPolicy(Policy):
         # Returns
             Selection action
         """
+
         assert q_values.ndim == 1
         nb_actions = q_values.shape[0] / self.total_heads
-        start = int(self.head*nb_actions)
-        end = int((self.head+1)*nb_actions)
+        start = int(self.head * nb_actions)
+        end = int((self.head + 1) * nb_actions)
         q_values_head = q_values[start:end]
-        
+
         if np.random.uniform() < self.eps:
-            action = np.random.random_integers(0, nb_actions-1)
+            action = np.random.random_integers(0, nb_actions - 1)
         else:
             action = np.argmax(q_values_head)
         action += start
         return int(action)
-    
+
     def set_head(self, head):
         self.head = head
-        
+
     def get_config(self):
         """Return configurations of EpsGreedyPolicy
         # Returns
