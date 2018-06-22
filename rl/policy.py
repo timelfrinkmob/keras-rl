@@ -48,6 +48,7 @@ class LinearAnnealedPolicy(Policy):
     value is following a linear function decreasing over time."""
     def __init__(self, inner_policy, attr, value_max, value_min, value_test, nb_steps):
         if not hasattr(inner_policy, attr):
+            print(inner_policy)
             raise ValueError('Policy does not have attribute "{}".'.format(attr))
 
         super(LinearAnnealedPolicy, self).__init__()
