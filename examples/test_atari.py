@@ -181,6 +181,7 @@ dqn = DQNAgent(model=model, nb_actions=nb_actions, heads=bsheads, memory=memory,
 
 
 
+
 dqn.compile(Adam(lr=.00025), metrics=['mae'])
 
 # Okay, now it's time to learn something! We visualize the training here for show, but this
