@@ -4,7 +4,7 @@ do
     do
 	    for exp in leps;
 	    do
-            python examples/atari_env.py --envname "$envname" --exp "$exp" --seed "$seed"
+            python examples/test_atari.py --envname "$envname" --exp "$exp" --seed "$seed"
         done
     done
 done
