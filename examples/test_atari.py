@@ -177,7 +177,7 @@ else:
 
 
 dqn = DQNAgent(model=model, nb_actions=nb_actions, heads=bsheads, memory=memory, nb_steps_warmup=50000, processor=processor, train_interval=4,
-                   target_model_update=10000, delta_clip=1., gamma=.99, policy=policy,enable_double_dqn=bootstrap)
+                   target_model_update=10000, delta_clip=1., batch_size=32*bsheads, gamma=.99, policy=policy,enable_double_dqn=bootstrap)
 
 
 
