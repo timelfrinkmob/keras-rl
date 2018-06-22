@@ -363,9 +363,9 @@ class BootstrapPolicy(Policy):
 
     def __init__(self, eps=.1):
         super(BootstrapPolicy, self).__init__()
+        self.eps = eps
         self.head = 0
         self.total_heads = 10
-        self.eps = eps
 
     def select_action(self, q_values):
         """Return the selected action
